@@ -133,5 +133,6 @@ node_parser: Dict[str, Callable[[lxml.html.HtmlElement, str], str]] = {
     'FONT': _parser_font,
     'I': _parser_i,
     'DIV': _parser_div,
+    'STRONG': _parser_b,
     'P': _parser_p,
 }
