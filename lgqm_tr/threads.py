@@ -44,8 +44,8 @@ def crawl_thread(tid: int,
     author: str = r['Variables']['thread']['author']
     author_id: str = r['Variables']['thread']['authorid']
     replies: str = r['Variables']['thread']['replies']
-    logging.debug(f'爬取《{title}》- {author} - {tid} {author_id}')
-    logging.debug('last_post: {}'.format(r['Variables']['thread']['lastpost']))
+    logging.info(f'爬取《{title}》- {author} - {tid} {author_id}')
+    logging.info('last_post: {}'.format(r['Variables']['thread']['lastpost']))
 
     r = sess.get(Settings.api,
                  params={
@@ -58,15 +58,17 @@ def crawl_thread(tid: int,
 
     th = Thread(tid, title, author)
 
-    for post in r['Variables']['postlist']:
+    for i, post in enumerate(r['Variables']['postlist']):
         html: str = post['message']
         if parse.predict_tongren(html):
             text = parse.parse_tongren(html)
             th.images.update((parse.hash_image_link(url), url)
                              for url in parse.parse_all_images(html))
+            img_cnt = 0
             if post.get('attachments'):  # 附件图片
                 for attach in post['attachments'].values():
                     if int(attach.get('attachimg', '0')):
+                        img_cnt += 1
                         img_url = urljoin(Settings.server,
                                           attach['url'] + attach['attachment'])
                         img_name = parse.hash_image_link(img_url)
@@ -78,5 +80,7 @@ def crawl_thread(tid: int,
                         else:
                             text += '\n[[Image:{}|class=img-responsive|thumb|100%|center|{}]]'.format(
                                 img_name, img_title)
+            if img_cnt:
+                logging.info(f'{i + 1}楼共有{img_cnt}个图片附件')
             th.posts.append(text)
     return th
