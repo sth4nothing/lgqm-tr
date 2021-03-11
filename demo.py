@@ -44,7 +44,7 @@ if download_image:
         assert r['Message'].get('messageval') == 'login_succeed'
         save_cookies(sess, cookies_path)
 
-th = lgqm_tr.threads.crawl_thread(tid)
+th = lgqm_tr.threads.crawl_thread(tid, sess)
 
 thread_dir = Path('./data/', str(tid))
 
