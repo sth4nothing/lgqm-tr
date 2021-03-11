@@ -1,4 +1,4 @@
-
+import os
 from urllib.parse import urljoin
 
 
@@ -6,6 +6,7 @@ class Settings:
     schema = 'https'
     host = 'lgqm.gq'
     api_path = '/api/mobile/'
+    data_dir = './data/'
     limit_length = 300
     @property
     def server(self):
@@ -14,5 +15,9 @@ class Settings:
     @property
     def api(self):
         return urljoin(self.server, self.api_path)
+
+    @property
+    def cookies_path(self):
+        return os.path.join(self.data_dir, 'cookies.json')
 
 default_settings = Settings()

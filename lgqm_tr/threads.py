@@ -2,11 +2,13 @@
 爬取帖子
 '''
 import logging
+import os
 from typing import Dict, List, Optional
+from urllib.parse import urljoin
 
-import requests
+from requests import Session
 
-from . import Settings, parse
+from . import Settings, parse, utils
 
 
 class Thread:
@@ -20,12 +22,14 @@ class Thread:
         self.posts: List[str] = list()
 
 
-def download_thread_images(th: Thread):
-    pass
-
-
-def crawl_thread(tid: int, download_image: bool = True, title: Optional[str] = None) -> Thread:
-    sess = requests.Session()
+def crawl_thread(tid: int,
+                 sess: Optional[Session] = None,
+                 title: Optional[str] = None) -> Thread:
+    if sess is None:
+        sess = Session()
+        # 如果要下载附件图片，则必须要登录
+        if os.path.exists(Settings.cookies_path):
+            utils.load_cookies(sess, Settings.cookies_path)
     r = sess.get(Settings.api,
                  params={
                      'module': 'viewthread',
@@ -55,9 +59,24 @@ def crawl_thread(tid: int, download_image: bool = True, title: Optional[str] = N
     th = Thread(tid, title, author)
 
     for post in r['Variables']['postlist']:
-        text: str = post['message']
-        if parse.predict_tongren(text):
-            th.posts.append(parse.parse_tongren(text))
-    if download_image:
-        download_thread_images(th)
+        html: str = post['message']
+        if parse.predict_tongren(html):
+            text = parse.parse_tongren(html)
+            th.images.update((parse.hash_image_link(url), url)
+                             for url in parse.parse_all_images(html))
+            if post.get('attachments'):  # 附件图片
+                for attach in post['attachments'].values():
+                    if int(attach.get('attachimg', '0')):
+                        img_url = urljoin(Settings.server,
+                                          attach['url'] + attach['attachment'])
+                        img_name = parse.hash_image_link(img_url)
+                        img_title: Optional[str] = attach.get('filename')
+                        th.images[img_name] = img_url
+                        if img_title is None:
+                            text += '\n[[Image:{}|class=img-responsive|thumb|100%|center]]'.format(
+                                img_name)
+                        else:
+                            text += '\n[[Image:{}|class=img-responsive|thumb|100%|center|{}]]'.format(
+                                img_name, img_title)
+            th.posts.append(text)
     return th
