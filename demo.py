@@ -8,10 +8,10 @@ from requests.sessions import Session
 import lgqm_tr
 
 logging.basicConfig(
-    level = logging.DEBUG,
-    format = '%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s',
-    datefmt = '%Y-%m-%d %H:%M:%S',
-    stream = sys.stdout
+    level=logging.DEBUG,
+    format='%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    stream=sys.stdout
 )
 
 tid = 7319
@@ -57,7 +57,7 @@ if not thread_dir.exists():
 
 # 将生成的文本保存到本地
 file_path = thread_dir.joinpath('{}-{}.mediawiki'.format(th.title, th.author))
-file_path.write_text('\n\n\n'.join(th.posts))
+file_path.write_text('\n\n\n'.join(th.posts), encoding='UTF-8')
 
 # 下载图片
 for name, url in th.images.items():
