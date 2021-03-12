@@ -7,7 +7,7 @@ from urllib.parse import urljoin
 import lxml.etree
 import lxml.html
 
-from . import Settings
+from . import Settings, Thread, Post
 
 _IMG_EXTS = {'jpg', 'jpeg', 'png', 'bmp', 'gif', 'webp'}
 
@@ -40,6 +40,8 @@ def _safe_name(name: str) -> str:
 
 
 def _hash_image_link(link: str) -> str:
+    '''由链接生成唯一的文件名
+    '''
     ext = re.split(r'[/\.]', link)[-1].lower()
     if ext not in _IMG_EXTS:
         ext = '.jpg'
@@ -100,26 +102,36 @@ def _predict_tongren(post: str) -> bool:
 
 
 def _parser_a(node: lxml.html.HtmlElement, contents: str) -> str:
+    '''`<a href="url">contents</a>`
+    '''
     return '[{} {}]'.format(urljoin(Settings.server, node.attrib.get('href')),
                             contents)
 
 
 def _parser_b(node: lxml.html.HtmlElement, contents: str) -> str:
+    '''`<b>contents</b>`
+    '''
     return "'''{}'''".format(contents)
 
 
 def _parser_blockquote(node: lxml.html.HtmlElement, contents: str) -> str:
+    '''`<blockquote>contents</blockquote>`
+    '''
     return '{{{{同人注释start}}}}{}{{{{同人注释end}}}}'.format(contents)
 
 
 def _parser_i(node: lxml.html.HtmlElement, contents: str) -> str:
+    '''`<i>contents</i>`
+    '''
     if node.attrib.get('class') == 'pstatus':
         return ''
     return "''{}''".format(contents)
 
 
 def _parser_img(node: lxml.html.HtmlElement, contents: str):
-    src: Optional[str] = node.attrib.get('src')
+    '''`<img src="url" title="title" />`
+    '''
+    src: Optional[str] = node.attrib.get('file') or node.attrib.get('src')
     title: Optional[str] = node.attrib.get('title')
     # 无效的图片或者论坛表情
     if src is None or predict_bbs_smiley(src):
@@ -134,23 +146,33 @@ def _parser_img(node: lxml.html.HtmlElement, contents: str):
 
 
 def _parser_font(node: lxml.html.HtmlElement, contents: str) -> str:
+    '''`<font>contents</font>`
+    '''
     return contents
 
 
 def _parser_div(node: lxml.html.HtmlElement, contents: str) -> str:
+    '''`<div>contents</div>`
+    '''
     return contents
 
 
 def _parser_br(node: lxml.html.HtmlElement, contents: str) -> str:
+    '''`<br >`
+    '''
     return '\n\n'
 
 
 def _parser_p(node: lxml.html.HtmlElement, contents: str) -> str:
+    '''`<p>contents</p>`
+    '''
     return '\n\n{}\n\n'.format(contents)
 
 
 def _predict_bbs_smiley(link: str):
-    return bool(re.search(r'static/image/smiley/\w+/\w+.gif$', link))
+    '''判断是否是表情
+    '''
+    return bool(re.search(r'static/image/[\w/]+.gif$', link))
 
 
 def _parse_all_images(html: str) -> List[str]:
@@ -162,10 +184,57 @@ def _parse_all_images(html: str) -> List[str]:
         if not predict_bbs_smiley(m.group('src')))
 
 
-safe_name = _safe_name
-parse_title = _parse_title
-parse_tongren = _parse_tongren
-predict_tongren = _predict_tongren
+def _sub_attach(post: Post):
+    '''替换回复中的附件图片`[attach]aid[/attach]`
+    '''
+    def _sub_attach_repl(match: re.Match) -> str:
+        '''将`[attach]aid[/attach]`替换为html的`img`标签
+        '''
+        aid = match.group('aid')
+        if aid not in post.image_aids:
+            # 无效的附件
+            return ''
+
+        # 回复正文中已经添加了图片，故从集合中移除避免重复添加图片
+        post.image_aids.remove(aid)
+        img = post.post_dict['attachments'][aid]
+        img_url = img['url'] + img['attachment']
+        img_title: Optional[str] = img.get('filename')
+        if img_title is None:
+            return '<img src="{}" />'.format(img_url)
+        return '<img src="{}" title="{}" />'.format(img_url, img_title)
+
+    def _sub_attach_inner(post_html: str):
+        return re.sub(r'\[attach\](?P<aid>\d+)\[/attach\]',
+                      _sub_attach_repl,
+                      post_html,
+                      flags=re.M)
+
+    post.post_html = _sub_attach_inner(post.post_html)
+
+
+def _parse_post(post: Post) -> None:
+    '''解析回复
+    '''
+    sub_attach(post)
+    post.post_text = parse_tongren(post.post_html)
+    post.images.update((hash_image_link(url), url)
+                       for url in parse_all_images(post.post_html))
+    # 处理附件图片
+    for aid in post.image_aids:
+        img = post.post_dict['attachments'][aid]
+        img_url = urljoin(Settings.server, img['url'] + img['attachment'])
+        img_name = hash_image_link(img_url)
+        img_title: Optional[str] = img.get('filename')
+        post.images[img_name] = img_url
+        if img_title is None:
+            post.post_text += '\n[[Image:{}|class=img-responsive|thumb|100%|center]]'.format(
+                img_name)
+        else:
+            post.post_text += '\n[[Image:{}|class=img-responsive|thumb|100%|center|{}]]'.format(
+                img_name, img_title)
+
+
 node_parser: Dict[str, Callable[[lxml.html.HtmlElement, str], str]] = {
     'A': _parser_a,
     'B': _parser_b,
@@ -179,5 +248,11 @@ node_parser: Dict[str, Callable[[lxml.html.HtmlElement, str], str]] = {
     'P': _parser_p,
 }
 hash_image_link = _hash_image_link
-predict_bbs_smiley = _predict_bbs_smiley
 parse_all_images = _parse_all_images
+parse_post = _parse_post
+parse_title = _parse_title
+parse_tongren = _parse_tongren
+predict_bbs_smiley = _predict_bbs_smiley
+predict_tongren = _predict_tongren
+safe_name = _safe_name
+sub_attach = _sub_attach
