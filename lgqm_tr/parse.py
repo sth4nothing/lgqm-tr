@@ -151,10 +151,26 @@ def _parser_font(node: lxml.html.HtmlElement, contents: str) -> str:
     return contents
 
 
+def _parser_u(node: lxml.html.HtmlElement, contents: str) -> str:
+    return '<u>' + contents + '</u>'
+
+
 def _parser_div(node: lxml.html.HtmlElement, contents: str) -> str:
     '''`<div>contents</div>`
     '''
     return contents
+
+
+def _parser_ol(node: lxml.html.HtmlElement, contents: str) -> str:
+    return '\n<ol>\n' + contents.strip() + '\n</ol>\n'
+
+
+def _parser_ul(node: lxml.html.HtmlElement, contents: str) -> str:
+    return '\n<ul>\n' + contents.strip() + '\n</ul>\n'
+
+
+def _parser_li(node: lxml.html.HtmlElement, contents: str) -> str:
+    return '<li>' + contents.strip() + '</li>\n'
 
 
 def _parser_br(node: lxml.html.HtmlElement, contents: str) -> str:
@@ -166,7 +182,49 @@ def _parser_br(node: lxml.html.HtmlElement, contents: str) -> str:
 def _parser_p(node: lxml.html.HtmlElement, contents: str) -> str:
     '''`<p>contents</p>`
     '''
-    return '\n\n{}\n\n'.format(contents)
+    return '\n\n{}\n\n'.format(contents.strip())
+
+
+def _parser_h1(node: lxml.html.HtmlElement, contents: str) -> str:
+    '''`<p>contents</p>`
+    '''
+    eq = '=' * 1
+    return '\n\n' + eq + contents.strip() + eq + '\n\n'
+
+
+def _parser_h2(node: lxml.html.HtmlElement, contents: str) -> str:
+    '''`<p>contents</p>`
+    '''
+    eq = '=' * 2
+    return '\n\n' + eq + contents.strip() + eq + '\n\n'
+
+
+def _parser_h3(node: lxml.html.HtmlElement, contents: str) -> str:
+    '''`<p>contents</p>`
+    '''
+    eq = '=' * 3
+    return '\n\n' + eq + contents.strip() + eq + '\n\n'
+
+
+def _parser_h4(node: lxml.html.HtmlElement, contents: str) -> str:
+    '''`<p>contents</p>`
+    '''
+    eq = '=' * 4
+    return '\n\n' + eq + contents.strip() + eq + '\n\n'
+
+
+def _parser_h5(node: lxml.html.HtmlElement, contents: str) -> str:
+    '''`<p>contents</p>`
+    '''
+    eq = '=' * 5
+    return '\n\n' + eq + contents.strip() + eq + '\n\n'
+
+
+def _parser_h6(node: lxml.html.HtmlElement, contents: str) -> str:
+    '''`<p>contents</p>`
+    '''
+    eq = '=' * 6
+    return '\n\n' + eq + contents.strip() + eq + '\n\n'
 
 
 def _predict_bbs_smiley(link: str):
@@ -240,12 +298,22 @@ node_parser: Dict[str, Callable[[lxml.html.HtmlElement, str], str]] = {
     'B': _parser_b,
     'BLOCKQUOTE': _parser_blockquote,
     'BR': _parser_br,
+    'DIV': _parser_div,
     'FONT': _parser_font,
+    'H1': _parser_h1,
+    'H1': _parser_h2,
+    'H1': _parser_h3,
+    'H1': _parser_h4,
+    'H1': _parser_h5,
+    'H1': _parser_h6,
     'I': _parser_i,
     'IMG': _parser_img,
-    'DIV': _parser_div,
-    'STRONG': _parser_b,
+    'LI': _parser_li,
+    'OL': _parser_ol,
     'P': _parser_p,
+    'STRONG': _parser_b,
+    'U': _parser_u,
+    'UL': _parser_ul,
 }
 hash_image_link = _hash_image_link
 parse_all_images = _parse_all_images
