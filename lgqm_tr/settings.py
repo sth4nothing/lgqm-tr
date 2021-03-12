@@ -7,7 +7,7 @@ class Settings:
     host = 'lgqm.gq'
     api_path = '/api/mobile/'
     data_dir = './data/'
-    limit_length = 0
+    limit_length = 200
     @property
     def server(self):
         return f'{self.schema}://{self.host}/'
